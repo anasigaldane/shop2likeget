@@ -4,18 +4,23 @@ import fetch from "node-fetch"; // node-fetch v3 يستخدم import
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import rateLimit from "express-rate-limit";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+// ✅ CORS آمن (ضع موقعك بدل "*")
+app.use(cors({
+  origin: "*", // مثال: "https://yourapp.vercel.app"
+}));
 
 const PORT = process.env.PORT || 3000;
 
 // ✅ مفتاح API خاص بك
-const API_KEY = process.env.MY_API_KEY || "HSFDASIMSGFAYISGFDSYAUGSFDSYAGFDSYISHFGDISHGDUYDGDJSJKDGFHDKDSJUDGFJDKDJFHFIKDKDHFJDLDKFHFKKDGHSOSJWUYQRQRFAUSOCPDJDMCBDHSISHCGVDHJSDKDHFGEJUWYHWRTEUDKDBDHGFUIDEKDHCDGFHDKDKJDHFGFHDKJSKJDJFDLDK"; // ضع المفتاح في Vercel Environment Variables
+const API_KEY = process.env.MY_API_KEY || "ضع_المفتاح_هنا";
 
 // Middleware للتحقق من مفتاح API
 function apiKeyMiddleware(req, res, next) {
@@ -25,6 +30,13 @@ function apiKeyMiddleware(req, res, next) {
   }
   next();
 }
+
+// ✅ Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 دقيقة
+  max: 50, // الحد الأقصى 50 طلب لكل IP
+  message: { error: "Too many requests, please try again later." }
+});
 
 // صحة السيرفر
 app.get("/health", (req, res) => {
@@ -53,8 +65,8 @@ async function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
   }
 }
 
-// 🔥 Route للحصول على AccountName مع حماية مفتاح API
-app.get("/player-info", apiKeyMiddleware, async (req, res) => {
+// 🔥 Route للحصول على AccountName مع حماية مفتاح API و Rate Limiting
+app.get("/player-info", apiKeyMiddleware, limiter, async (req, res) => {
   const { uid } = req.query;
   if (!uid) return res.status(400).json({ error: "uid مطلوب" });
 
