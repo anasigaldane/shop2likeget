@@ -14,6 +14,18 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
+// ✅ مفتاح API خاص بك
+const API_KEY = process.env.MY_API_KEY || "HSFDASIMSGFAYISGFDSYAUGSFDSYAGFDSYISHFGDISHGDUYDGDJSJKDGFHDKDSJUDGFJDKDJFHFIKDKDHFJDLDKFHFKKDGHSOSJWUYQRQRFAUSOCPDJDMCBDHSISHCGVDHJSDKDHFGEJUWYHWRTEUDKDBDHGFUIDEKDHCDGFHDKDKJDHFGFHDKJSKJDJFDLDK"; // ضع المفتاح في Vercel Environment Variables
+
+// Middleware للتحقق من مفتاح API
+function apiKeyMiddleware(req, res, next) {
+  const key = req.headers["x-api-key"];
+  if (!key || key !== API_KEY) {
+    return res.status(401).json({ error: "Unauthorized: invalid API key" });
+  }
+  next();
+}
+
 // صحة السيرفر
 app.get("/health", (req, res) => {
   res.json({ ok: true, pid: process.pid, envPort: process.env.PORT || null });
@@ -41,17 +53,18 @@ async function fetchWithTimeout(url, opts = {}, timeoutMs = 15000) {
   }
 }
 
-// 🔥 Route للحصول على AccountName
-app.get("/player-info", async (req, res) => {
+// 🔥 Route للحصول على AccountName مع حماية مفتاح API
+app.get("/player-info", apiKeyMiddleware, async (req, res) => {
   const { uid } = req.query;
   if (!uid) return res.status(400).json({ error: "uid مطلوب" });
 
-  // ضع هنا رابط API خارجي متاح على الإنترنت
   const region = "me";
   const apiUrl = `https://shop2like-major-login.vercel.app/player-info?region=${region}&uid=${uid}`;
 
   try {
     const upstreamRes = await fetchWithTimeout(apiUrl);
+    if (!upstreamRes.ok) throw new Error(`Upstream HTTP ${upstreamRes.status}`);
+
     const data = await upstreamRes.json();
 
     const accountName =
